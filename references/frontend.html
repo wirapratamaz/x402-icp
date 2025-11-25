@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>x402 // ICP Agentic Economy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Anime.js for complex animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505;
+            --grid-color: rgba(255, 255, 255, 0.05);
+            --accent-glow: rgba(255, 255, 255, 0.15);
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            color: #e5e5e5;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Scanline effect */
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 10;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(0,0,0,0) 100%);
+            opacity: 0.1;
+            position: absolute;
+            bottom: 100%;
+            pointer-events: none;
+            /* Animation handled by Anime.js now for better control */
+        }
+
+        /* Grid Background */
+        .bg-grid {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
+                              linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
+            mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+            -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+            transform-origin: center center;
+        }
+
+        .terminal-cursor::after {
+            content: '▋';
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Utility for Anime.js targets */
+        .hero-el { opacity: 0; transform: translateY(20px); }
+        .feature-card { opacity: 0; }
+        .step-indicator { transform-origin: left center; }
+        
+        /* Custom Scrollbar for Terminal */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-white selection:text-black">
+
+    <!-- Background Elements -->
+    <div class="fixed inset-0 bg-grid z-[-1] opacity-60"></div>
+    <div class="fixed inset-0 pointer-events-none scanline"></div>
+
+    <!-- Navigation -->
+    <nav class="w-full border-b border-white/10 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2 font-mono font-bold tracking-tighter text-xl hero-el">
+                <i data-lucide="cpu" class="w-5 h-5"></i>
+                x402<span class="text-white/40">.icp</span>
+            </div>
+            <div class="hidden md:flex items-center gap-8 font-mono text-sm text-gray-400">
+                <a href="#" class="nav-link hover:text-white transition-colors hero-el">Documentation</a>
+                <a href="#" class="nav-link hover:text-white transition-colors hero-el">Facilitator Status</a>
+                <a href="#" class="nav-link hover:text-white transition-colors hero-el">GitHub</a>
+            </div>
+            <button class="hero-el font-mono text-xs border border-white/20 px-4 py-2 hover:bg-white hover:text-black transition-colors duration-300 group">
+                Connect Wallet <span class="group-hover:translate-x-1 inline-block transition-transform">→</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col items-center justify-center relative py-20 px-4">
+        
+        <!-- Hero Section -->
+        <div class="text-center max-w-4xl mx-auto mb-16 space-y-6 perspective-[1000px]">
+            <div class="hero-el inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs font-mono text-gray-400 mb-4">
+                <span class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
+                Facilitator Live on Mainnet
+            </div>
+            <h1 class="hero-el text-5xl md:text-7xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-gray-600 leading-tight">
+                The Agentic Economy <br> Starts Here.
+            </h1>
+            <p class="hero-el text-gray-400 text-lg md:text-xl max-w-2xl mx-auto font-light">
+                Enable autonomous machine-to-machine payments on ICP using the <span class="text-white font-mono">x402</span> protocol. 
+                Zero friction. Trustless verification via <span class="text-white font-mono">ckBTC</span>.
+            </p>
+            
+            <div class="hero-el flex flex-wrap items-center justify-center gap-4 mt-8">
+                <button id="main-cta" onclick="scrollToDemo()" class="bg-white text-black px-8 py-4 font-mono font-bold tracking-tight hover:bg-gray-200 transition-colors flex items-center gap-2 relative overflow-hidden">
+                    <i data-lucide="play-circle" class="w-4 h-4"></i> Run Simulation
+                </button>
+                <button class="px-8 py-4 font-mono font-bold tracking-tight border border-white/20 hover:border-white transition-colors flex items-center gap-2">
+                    <i data-lucide="file-code" class="w-4 h-4"></i> View SDK
+                </button>
+            </div>
+        </div>
+
+        <!-- Interactive Demo Interface -->
+        <div id="demo-section" class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-start hero-el">
+            
+            <!-- Left: Protocol Visualizer -->
+            <div class="border border-white/10 bg-black/50 backdrop-blur-xl p-6 md:p-8 rounded-lg relative overflow-hidden group min-h-[500px] flex flex-col">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                
+                <div class="flex items-center justify-between mb-8">
+                    <h3 class="font-mono text-lg font-bold flex items-center gap-2">
+                        <i data-lucide="zap" class="w-4 h-4"></i> Agent Workflow
+                    </h3>
+                    <div class="flex gap-2">
+                        <span class="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50"></span>
+                        <span class="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50"></span>
+                        <span class="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50"></span>
+                    </div>
+                </div>
+
+                <div class="space-y-6 relative z-10 flex-grow">
+                    <!-- Step 1 -->
+                    <div id="step-1" class="step-indicator opacity-30 border-l-2 border-white/10 pl-6 pb-2 origin-left">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-mono text-sm text-gray-400">Step 01</span>
+                            <span class="badge px-2 py-0.5 text-[10px] border border-white/10 rounded font-mono">CLIENT</span>
+                        </div>
+                        <h4 class="text-white font-semibold">Request Resource</h4>
+                        <p class="text-sm text-gray-500 mt-1">GET /api/v1/premium-data</p>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div id="step-2" class="step-indicator opacity-30 border-l-2 border-white/10 pl-6 pb-2 origin-left">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-mono text-sm text-gray-400">Step 02</span>
+                            <span class="badge px-2 py-0.5 text-[10px] border border-red-500/30 text-red-400 rounded font-mono">SERVER</span>
+                        </div>
+                        <h4 class="text-white font-semibold">402 Payment Required</h4>
+                        <p class="text-sm text-gray-500 mt-1">Returns payment metadata</p>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div id="step-3" class="step-indicator opacity-30 border-l-2 border-white/10 pl-6 pb-2 origin-left">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-mono text-sm text-gray-400">Step 03</span>
+                            <span class="badge px-2 py-0.5 text-[10px] border border-blue-500/30 text-blue-400 rounded font-mono">BLOCKCHAIN</span>
+                        </div>
+                        <h4 class="text-white font-semibold">ICRC-2 Approve</h4>
+                        <p class="text-sm text-gray-500 mt-1">Agent approves spending cap</p>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div id="step-4" class="step-indicator opacity-30 border-l-2 border-white/10 pl-6 origin-left">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-mono text-sm text-gray-400">Step 04</span>
+                            <span class="badge px-2 py-0.5 text-[10px] border border-green-500/30 text-green-400 rounded font-mono">SUCCESS</span>
+                        </div>
+                        <h4 class="text-white font-semibold">Settlement & Delivery</h4>
+                        <p class="text-sm text-gray-500 mt-1">Resource delivered.</p>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-6 border-t border-white/10 flex justify-between items-center">
+                    <div class="text-xs font-mono text-gray-500">
+                        Protocol: <span class="text-white">x402-exact</span><br>
+                        Chain: <span class="text-white">ICP (Mainnet)</span>
+                    </div>
+                    <button id="run-btn" onclick="runSimulation()" class="bg-white hover:bg-gray-200 text-black px-6 py-2 text-sm font-bold font-mono transition-transform hover:scale-105 active:scale-95">
+                        INITIATE SEQUENCE
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right: Terminal Output -->
+            <div class="h-full min-h-[500px] bg-[#0a0a0a] border border-white/10 rounded-lg p-4 font-mono text-xs md:text-sm overflow-hidden flex flex-col shadow-2xl relative">
+                <!-- Scanline inside terminal -->
+                <div class="absolute inset-0 pointer-events-none bg-gradient-to-b from-white/5 to-transparent h-[10px] w-full animate-scan"></div>
+                
+                <div class="flex items-center justify-between border-b border-white/5 pb-2 mb-2 px-2 z-20 bg-[#0a0a0a]">
+                    <span class="text-gray-500">agent-sdk-logs --bash</span>
+                    <div class="flex gap-1">
+                        <div class="w-2 h-2 rounded-full bg-white/20"></div>
+                        <div class="w-2 h-2 rounded-full bg-white/20"></div>
+                    </div>
+                </div>
+                
+                <div id="terminal-content" class="flex-grow overflow-y-auto space-y-1 p-2 font-mono text-gray-400 scrollbar-hide z-10 pb-10">
+                    <div class="terminal-line text-green-500">➜  ~ initializing agent...</div>
+                    <div class="terminal-line text-green-500">➜  ~ connected to ICP canister [mxzaz-hq...]</div>
+                    <div class="terminal-line text-gray-500 italic">Waiting for input...</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Features Grid -->
+        <div class="mt-32 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
+            <div class="feature-card p-6 border border-white/5 hover:border-white/20 transition-all bg-white/[0.02] group cursor-default">
+                <div class="w-10 h-10 bg-white/5 flex items-center justify-center mb-4 group-hover:bg-white group-hover:text-black transition-all duration-500">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+                </div>
+                <h3 class="text-lg font-bold font-mono mb-2">Trustless Facilitator</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">
+                    Unlike Solana's off-chain indexers, the Anda verification canister runs fully on-chain. No centralized points of failure.
+                </p>
+            </div>
+            <div class="feature-card p-6 border border-white/5 hover:border-white/20 transition-all bg-white/[0.02] group cursor-default">
+                <div class="w-10 h-10 bg-white/5 flex items-center justify-center mb-4 group-hover:bg-white group-hover:text-black transition-all duration-500">
+                    <i data-lucide="bitcoin" class="w-5 h-5"></i>
+                </div>
+                <h3 class="text-lg font-bold font-mono mb-2">Native ckBTC</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">
+                    Settle payments in Bitcoin (via ckBTC) with sub-second finality. The standard uses ICRC-2 <code>approve</code> logic.
+                </p>
+            </div>
+            <div class="feature-card p-6 border border-white/5 hover:border-white/20 transition-all bg-white/[0.02] group cursor-default">
+                <div class="w-10 h-10 bg-white/5 flex items-center justify-center mb-4 group-hover:bg-white group-hover:text-black transition-all duration-500">
+                    <i data-lucide="bot" class="w-5 h-5"></i>
+                </div>
+                <h3 class="text-lg font-bold font-mono mb-2">AI Ready</h3>
+                <p class="text-gray-500 text-sm leading-relaxed">
+                    Designed for the machine economy. JSON-based headers allow LLMs and autonomous agents to negotiate pricing instantly.
+                </p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 py-12 mt-20">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="font-mono text-sm text-gray-500">
+                &copy; 2025 x402 Protocol. Built on <span class="text-white">Internet Computer</span>.
+            </div>
+            <div class="flex gap-6">
+                <a href="#" class="text-gray-500 hover:text-white transition-colors"><i data-lucide="github" class="w-5 h-5"></i></a>
+                <a href="#" class="text-gray-500 hover:text-white transition-colors"><i data-lucide="twitter" class="w-5 h-5"></i></a>
+                <a href="#" class="text-gray-500 hover:text-white transition-colors"><i data-lucide="disc" class="w-5 h-5"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // ----------------------------------------------------
+        // ANIME.JS INITIALIZATION
+        // ----------------------------------------------------
+
+        // 1. Entrance Animation (Staggered Hero)
+        document.addEventListener('DOMContentLoaded', () => {
+            // Hero Elements Fade Up
+            anime({
+                targets: '.hero-el',
+                translateY: [20, 0],
+                opacity: [0, 1],
+                delay: anime.stagger(100, {start: 200}),
+                easing: 'spring(1, 80, 10, 0)'
+            });
+
+            // Feature Cards Stagger
+            anime({
+                targets: '.feature-card',
+                translateY: [30, 0],
+                opacity: [0, 1],
+                delay: anime.stagger(150, {start: 800}),
+                easing: 'easeOutExpo'
+            });
+
+            // Scanline Animation Loop
+            anime({
+                targets: '.scanline',
+                bottom: ['100%', '-100%'],
+                duration: 8000,
+                easing: 'linear',
+                loop: true
+            });
+
+            // Background Grid Subtle Movement
+            anime({
+                targets: '.bg-grid',
+                backgroundPosition: ['0px 0px', '40px 40px'],
+                duration: 20000,
+                easing: 'linear',
+                loop: true
+            });
+        });
+
+        // 2. Interactive Hover Effects (Magnetic feel)
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                anime({
+                    targets: btn,
+                    scale: 1.05,
+                    duration: 400,
+                    easing: 'spring(1, 80, 10, 0)'
+                });
+            });
+            btn.addEventListener('mouseleave', () => {
+                anime({
+                    targets: btn,
+                    scale: 1,
+                    duration: 400,
+                    easing: 'spring(1, 80, 10, 0)'
+                });
+            });
+        });
+
+
+        // ----------------------------------------------------
+        // TERMINAL & SIMULATION LOGIC
+        // ----------------------------------------------------
+        const terminal = document.getElementById('terminal-content');
+        const runBtn = document.getElementById('run-btn');
+        let isRunning = false;
+
+        function scrollToDemo() {
+            document.getElementById('demo-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Animated Logger
+        function log(message, type = 'info', delay = 0) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const div = document.createElement('div');
+                    div.className = 'flex gap-2 font-mono opacity-0 transform translate-x-[-10px] terminal-line';
+                    
+                    const timestamp = new Date().toISOString().split('T')[1].slice(0,8);
+                    const timeSpan = `<span class="text-gray-600 select-none">[${timestamp}]</span>`;
+                    
+                    let content = '';
+                    if (type === 'error') content = `<span class="text-red-500 font-bold">ERROR</span> ${message}`;
+                    else if (type === 'success') content = `<span class="text-green-500 font-bold">SUCCESS</span> ${message}`;
+                    else if (type === 'warn') content = `<span class="text-yellow-500 font-bold">WARN</span> ${message}`;
+                    else if (type === 'cmd') content = `<span class="text-blue-400 font-bold">➜</span> ${message}`;
+                    else if (type === 'json') content = `<pre class="text-xs text-gray-400 pl-4 border-l border-gray-700 font-light tracking-wide">${message}</pre>`;
+                    else content = `<span class="text-gray-300">${message}</span>`;
+
+                    div.innerHTML = `${timeSpan} ${content}`;
+                    terminal.appendChild(div);
+                    
+                    // Animate the specific new line
+                    anime({
+                        targets: div,
+                        opacity: [0, 1],
+                        translateX: [-10, 0],
+                        duration: 400,
+                        easing: 'easeOutQuad'
+                    });
+
+                    // Smooth scroll to bottom
+                    terminal.scrollTo({
+                        top: terminal.scrollHeight,
+                        behavior: 'smooth'
+                    });
+
+                    resolve();
+                }, delay);
+            });
+        }
+
+        // Step Visualizer Animation
+        function updateStep(stepId, isActive) {
+            const step = document.getElementById(stepId);
+            const allSteps = document.querySelectorAll('.step-indicator');
+            
+            // Reset logic
+            if (stepId === 'reset') {
+                allSteps.forEach(s => {
+                    anime({
+                        targets: s,
+                        opacity: 0.3,
+                        scale: 1,
+                        borderLeftColor: 'rgba(255, 255, 255, 0.1)',
+                        translateX: 0,
+                        duration: 300,
+                        easing: 'easeOutQuad'
+                    });
+                });
+                return;
+            }
+
+            // Deactivate others
+            allSteps.forEach(s => {
+                if(s.id !== stepId) {
+                    anime({
+                        targets: s,
+                        opacity: 0.3,
+                        scale: 1,
+                        borderLeftColor: 'rgba(255, 255, 255, 0.1)',
+                        duration: 300,
+                        easing: 'easeOutQuad'
+                    });
+                }
+            });
+            
+            // Activate current with spring
+            if (isActive) {
+                let glowColor = '#ffffff';
+                if(stepId.includes('2')) glowColor = '#ef4444'; // Red for error
+                if(stepId.includes('3')) glowColor = '#3b82f6'; // Blue for chain
+                if(stepId.includes('4')) glowColor = '#22c55e'; // Green for success
+
+                anime({
+                    targets: step,
+                    opacity: 1,
+                    scale: 1.02,
+                    borderLeftColor: glowColor,
+                    translateX: 5,
+                    duration: 800,
+                    easing: 'spring(1, 80, 12, 0)'
+                });
+            }
+        }
+
+        async function runSimulation() {
+            if (isRunning) return;
+            isRunning = true;
+            
+            // Animate Button State
+            anime({
+                targets: runBtn,
+                opacity: 0.7,
+                scale: 0.95,
+                duration: 200,
+                easing: 'easeInOutQuad'
+            });
+            runBtn.innerHTML = '<div class="loader mx-auto"></div>';
+            
+            // Reset Terminal with a fade out effect if full
+            const oldLines = terminal.querySelectorAll('.terminal-line');
+            if(oldLines.length > 5) {
+                anime({
+                    targets: oldLines,
+                    opacity: 0,
+                    duration: 300,
+                    easing: 'easeOutQuad',
+                    complete: () => { terminal.innerHTML = ''; }
+                });
+                await new Promise(r => setTimeout(r, 300));
+            } else {
+                terminal.innerHTML = ''; 
+            }
+            
+            updateStep('reset');
+
+            // --- SIMULATION SEQUENCE ---
+            
+            await log('Initiating request to https://api.x402.icp/v1/monopoly-data', 'cmd', 100);
+            updateStep('step-1', true);
+            await log('Sending GET request via Agent-JS...', 'info', 600);
+            
+            // 402 Error
+            await log('Server responded with status code 402 Payment Required', 'error', 800);
+            updateStep('step-2', true);
+            await log('Parsing x402 headers for payment metadata...', 'info', 400);
+            await log(`{
+  "chain": "ICP",
+  "token": "ckBTC (mxzaz...)",
+  "amount": 100 sats,
+  "facilitator": "anda-canister",
+  "recipient": "merchant-principal"
+}`, 'json', 200);
+
+            // Agent Action
+            await log('Agent detected payment requirement. Initiating wallet...', 'warn', 1200);
+            updateStep('step-3', true);
+            await log('Requesting ICRC-2 Approval from user wallet...', 'info', 500);
+            
+            // Simulate processing time
+            await log('Spending Cap: 100 satoshis + fee', 'info', 600);
+            await log('Signing transaction...', 'info', 600);
+            await log('Transaction Broadcasted: block_height #2,405,112', 'success', 800);
+
+            // Retry Request
+            await log('Retrying request with X-Payment header...', 'cmd', 800);
+            updateStep('step-4', true);
+            await log('Facilitator validating block index...', 'info', 600);
+            await log('Settlement executed successfully.', 'success', 800);
+            await log('Server responded: 200 OK', 'success', 200);
+            
+            // Result
+            await log('Payload received: { "monopoly_status": "live", "agents": 402 }', 'json', 400);
+            await log('<span class="terminal-cursor text-green-400">Session complete. Ready for next command.</span>', 'info', 100);
+
+            // Reset Button
+            isRunning = false;
+            anime({
+                targets: runBtn,
+                opacity: 1,
+                scale: 1,
+                duration: 400,
+                easing: 'spring(1, 80, 10, 0)'
+            });
+            runBtn.innerHTML = 'INITIATE SEQUENCE';
+            runBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1732 @@
+Directory structure:
+└── anda_x402_canister/
+    ├── README.md
+    ├── anda_x402_canister.did
+    ├── Cargo.toml
+    └── src/
+        ├── api.rs
+        ├── api_admin.rs
+        ├── api_http.rs
+        ├── api_init.rs
+        ├── helper.rs
+        ├── lib.rs
+        └── store.rs
+
+================================================
+FILE: rs/anda_x402_canister/README.md
+================================================
+# `anda_x402_canister`
+
+A fully on-chain x402 payment facilitator on the Internet Computer, part of [Anda Cloud](https://github.com/ldclabs/anda-cloud).
+
+## Overview
+
+`anda_x402_canister` is an ICP smart contract that functions as a payment facilitator based on the [x402 Protocol](https://www.x402.org). It handles payment verification and settlement for services within the Anda Cloud ecosystem, supporting multiple ICRC-2 compatible tokens.
+
+## Features
+
+- Implements the x402 payment protocol for decentralized payments.
+- Supports multiple ICRC-2 compatible tokens as payment assets.
+- Provides both Candid and HTTP APIs.
+- Manages payment states, fees, and transaction logs on-chain.
+- Supports both JSON and CBOR content types for the HTTP API.
+- Fully deployed as a smart contract on the decentralized ICP blockchain, governed by ICPanda DAO.
+
+## Online Anda x402 Facilitator Endpoints
+
+Facilitator Info:
+https://ogkpr-lyaaa-aaaap-an5fq-cai.icp0.io
+
+Supported Payment Kinds:
+https://ogkpr-lyaaa-aaaap-an5fq-cai.icp0.io/supported
+
+Verify:
+```
+POST https://ogkpr-lyaaa-aaaap-an5fq-cai.icp0.io/verify
+```
+
+Settle:
+```
+POST https://ogkpr-lyaaa-aaaap-an5fq-cai.icp0.io/settle
+```
+
+## Quick Start
+
+### Client Typescript SDK
+
+```bash
+npm install @ldclabs/anda_x402
+```
+
+npmjs: https://www.npmjs.com/package/@ldclabs/anda_x402
+
+source: https://github.com/ldclabs/anda-cloud/tree/main/ts/anda_x402
+
+### Integration Example
+
+https://github.com/ldclabs/anda-cloud/tree/main/examples/ts/anda_x402/app.ts
+
+### Local Deployment
+
+Deploy the canister:
+```bash
+# dfx canister create --specified-id ogkpr-lyaaa-aaaap-an5fq-cai anda_x402_canister
+dfx deploy anda_x402_canister --argument "(opt variant {Init =
+  record {
+    name = \"Anda X402 Facilitator\";
+    governance_canister = opt principal \"dwv6s-6aaaa-aaaaq-aacta-cai\";
+  }
+})"
+```
+
+Add supported asset:
+```bash
+# Add the PANDA token as a supported asset, payment fee is 0.1 PANDA
+dfx canister call anda_x402_canister admin_update_supported_asset '(principal "druyg-tyaaa-aaaaq-aactq-cai", 10_000_000)'
+# Check the canister info
+dfx canister call anda_x402_canister info '()'
+```
+
+### Candid API
+
+The canister exposes a comprehensive Candid API. Key endpoints include:
+
+```did
+// Get canister information and state
+info : () -> (Result_2) query;
+
+// Get the next valid nonce for the caller to make a payment
+next_nonce : () -> (Result_4) query;
+
+// Get payment logs for the caller
+my_payment_logs : (nat32, opt nat64) -> (Result_3) query;
+
+// --- Administration ---
+
+// Add a supported payment kind (version and scheme)
+admin_add_supported_payment : (X402Version, Scheme) -> (Result);
+
+// Remove a supported payment kind
+admin_remove_supported_payment : (X402Version, Scheme) -> (Result);
+
+// Add or update a supported ICRC-1 asset
+admin_update_supported_asset : (principal, nat) -> (Result);
+
+// Remove a supported asset
+admin_remove_supported_asset : (principal) -> (Result);
+
+// Collect fees from the canister
+admin_collect_fees : (principal, principal, nat) -> (Result_1);
+```
+
+Full Candid API definition: [anda_x402_canister.did](https://github.com/ldclabs/anda-cloud/tree/main/rs/anda_x402_canister/anda_x402_canister.did)
+
+### HTTP API
+
+The canister supports HTTP requests for payment operations. Please see [x402 Protocol Specification](https://github.com/coinbase/x402/blob/main/specs/x402-specification.md) for details.
+
+#### Facilitator Endpoints
+
+- `GET /`: Get canister info, including supported assets and payment kinds.
+- `GET /supported`: Get a list of supported payment kinds.
+- `POST /verify`: Verify a payment authorization without settling.
+- `POST /settle`: Settle a payment by transferring funds.
+
+#### Content Types
+
+The HTTP API supports both JSON and CBOR formats. The content type is determined by the `Accept` and `Content-Type` headers:
+
+- For JSON: `application/json`
+- For CBOR: `application/cbor`
+
+## Data Types
+
+### ICP Payment Payload
+
+The core data structure representing the payment payload for ICP chain:
+
+```ts
+export interface IcpPayload {
+  /// ICP based signature over the authorization data in base64 format
+  signature: string
+  /// Authorization parameters for the payment
+  authorization: IcpPayloadAuthorization
+}
+
+export interface IcpPayloadAuthorization {
+  /// Payment scheme identifier
+  scheme: 'exact' | 'upto'
+  /// token ledger canister address
+  asset: string
+  /// Recipient's wallet address
+  to: string
+  /// Payment amount in atomic units.
+  /// For `exact` scheme, this is the exact amount to be transferred.
+  /// For `upto` scheme, this is the maximum amount that can be transferred.
+  value: string
+  /// Unix timestamp when authorization expires (in milliseconds)
+  expiresAt: number
+  /// A self-incrementing number and should be used to prevent replay attacks.
+  nonce: number
+}
+```
+
+## License
+Copyright © 2024-2025 [LDC Labs](https://github.com/ldclabs).
+
+`ldclabs/anda-cloud` is licensed under the MIT License. See [LICENSE](../../LICENSE) for the full license text.
+
+
+
+================================================
+FILE: rs/anda_x402_canister/anda_x402_canister.did
+================================================
+type AssetInfo = record {
+  decimals : nat8;
+  transfer_fee : nat;
+  logo : opt text;
+  name : text;
+  payment_fee : nat;
+  symbol : text;
+};
+type CanisterArgs = variant { Upgrade : UpgradeArgs; Init : InitArgs };
+type InitArgs = record { governance_canister : opt principal; name : text };
+type PayerStateInfo = record {
+  next_nonce : nat64;
+  logs : vec nat64;
+  total_sent : vec record { principal; nat };
+};
+type PaymentLogInfo = record {
+  id : nat64;
+  to : principal;
+  fee : text;
+  asset : principal;
+  value : text;
+  scheme : Scheme;
+  from : principal;
+  nonce : nat64;
+  timestamp : nat64;
+  expires_at : nat64;
+};
+type Result = variant { Ok; Err : text };
+type Result_1 = variant { Ok : nat; Err : text };
+type Result_2 = variant { Ok : StateInfo; Err : text };
+type Result_3 = variant { Ok : PayerStateInfo; Err : text };
+type Result_4 = variant { Ok : vec PaymentLogInfo; Err : text };
+type Result_5 = variant { Ok : nat64; Err : text };
+type Result_6 = variant { Ok : text; Err : text };
+type Scheme = variant { Exact; Upto };
+type StateInfo = record {
+  total_withdrawn_fees : vec record { principal; nat };
+  supported_payments : vec SupportedPaymentKind;
+  total_collected_fees : vec record { principal; nat };
+  governance_canister : opt principal;
+  name : text;
+  supported_assets : vec record { principal; AssetInfo };
+  key_name : text;
+};
+type SupportedPaymentKind = record {
+  scheme : Scheme;
+  network : text;
+  x402_version : X402Version;
+};
+type UpgradeArgs = record {
+  governance_canister : opt principal;
+  name : opt text;
+};
+type X402Version = variant { V1 };
+service : (opt CanisterArgs) -> {
+  admin_add_supported_payment : (nat8, text) -> (Result);
+  admin_collect_fees : (principal, principal, nat) -> (Result_1);
+  admin_remove_supported_asset : (principal) -> (Result);
+  admin_remove_supported_payment : (nat8, text) -> (Result);
+  admin_update_supported_asset : (principal, nat) -> (Result);
+  info : () -> (Result_2) query;
+  my_info : () -> (Result_3) query;
+  my_payment_logs : (nat32, opt nat64) -> (Result_4) query;
+  next_nonce : () -> (Result_5) query;
+  validate_admin_add_supported_payment : (nat8, text) -> (Result_6);
+  validate_admin_collect_fees : (principal, principal, nat) -> (Result_6);
+  validate_admin_remove_supported_payment : (nat8, text) -> (Result_6);
+  validate_admin_update_supported_asset : (principal, nat) -> (Result_6);
+  validate_remove_update_supported_asset : (principal) -> (Result_6);
+}
+
+
+
+================================================
+FILE: rs/anda_x402_canister/Cargo.toml
+================================================
+[package]
+name = "anda_x402_canister"
+description = "A fully on-chain x402 payment facilitator on the Internet Computer."
+repository = "https://github.com/ldclabs/anda-cloud/tree/main/rs/anda_x402_canister"
+publish = false
+version.workspace = true
+edition.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+anda_cloud_cdk = { path = "../anda_cloud_cdk", version = "0.3" }
+base64 = { workspace = true }
+candid = { workspace = true, features = ["value", "printer"] }
+ciborium = { workspace = true }
+ic-cdk = { workspace = true }
+ic-cdk-timers = { workspace = true }
+serde = { workspace = true }
+serde_bytes = { workspace = true }
+serde_json = { workspace = true }
+icrc-ledger-types = { workspace = true }
+ic-stable-structures = { workspace = true }
+ic-http-certification = { workspace = true }
+ic_auth_types = { workspace = true }
+num-traits = { workspace = true }
+lazy_static = { workspace = true }
+once_cell = { workspace = true }
+ic-dummy-getrandom-for-wasm = "0.1"
+
+
+
+================================================
+FILE: rs/anda_x402_canister/src/api.rs
+================================================
+use crate::{helper::msg_caller, store};
+
+#[ic_cdk::query]
+fn info() -> Result<store::StateInfo, String> {
+    Ok(store::state::info())
+}
+
+#[ic_cdk::query]
+fn next_nonce() -> Result<u64, String> {
+    let caller = msg_caller()?;
+    Ok(store::state::next_nonce(caller))
+}
+
+#[ic_cdk::query]
+fn my_info() -> Result<store::PayerStateInfo, String> {
+    let caller = msg_caller()?;
+    Ok(store::state::payer_info(caller))
+}
+
+#[ic_cdk::query]
+fn my_payment_logs(take: u32, prev: Option<u64>) -> Result<Vec<store::PaymentLogInfo>, String> {
+    let caller = msg_caller()?;
+    let take = take.clamp(2, 100) as usize;
+    let rt = store::state::user_logs(caller, take, prev);
+    Ok(rt)
+}
+
+
+
+================================================
+FILE: rs/anda_x402_canister/src/api_admin.rs
+================================================
+use anda_cloud_cdk::x402::{Scheme, SupportedPaymentKind, X402Version};
+use candid::{Nat, Principal};
+use icrc_ledger_types::icrc1::account::Account;
+use std::str::FromStr;
+
+use crate::{
+    helper::{pretty_format, token_info, transfer_token_to},
+    store,
+};
+
+#[ic_cdk::update(guard = "is_controller")]
+fn admin_add_supported_payment(x402_version: u8, scheme: String) -> Result<(), String> {
+    let payment = SupportedPaymentKind {
+        x402_version: X402Version::try_from(x402_version).map_err(|err| err.to_string())?,
+        scheme: Scheme::from_str(&scheme).map_err(|err| err.to_string())?,
+        network: "icp".to_string(),
+    };
+
+    if payment.scheme == Scheme::Upto {
+        return Err("Scheme::Upto is not supported".to_string());
+    }
+    store::state::with_mut(|s| {
+        s.supported_payments.insert(payment);
+        Ok(())
+    })
+}
+
+#[ic_cdk::update]
+fn validate_admin_add_supported_payment(
+    x402_version: u8,
+    scheme: String,
+) -> Result<String, String> {
+    if scheme == Scheme::Upto.to_string() {
+        return Err("Scheme::Upto is not supported".to_string());
+    }
+
+    pretty_format(&(x402_version, scheme))
+}
+
+#[ic_cdk::update(guard = "is_controller")]
+fn admin_remove_supported_payment(x402_version: u8, scheme: String) -> Result<(), String> {
+    let x402_version = X402Version::try_from(x402_version).map_err(|err| err.to_string())?;
+    let scheme = Scheme::from_str(&scheme).map_err(|err| err.to_string())?;
+    store::state::with_mut(|s| {
+        s.supported_payments
+            .retain(|p| p.x402_version != x402_version || p.scheme != scheme);
+        Ok(())
+    })
+}
+
+#[ic_cdk::update]
+fn validate_admin_remove_supported_payment(
+    x402_version: u8,
+    scheme: String,
+) -> Result<String, String> {
+    pretty_format(&(x402_version, scheme))
+}
+
+#[ic_cdk::update(guard = "is_controller")]
+async fn admin_update_supported_asset(asset: Principal, payment_fee: u128) -> Result<(), String> {
+    let asset_info = check_supported_asset(asset, payment_fee).await?;
+    store::state::with_mut(|s| {
+        s.supported_assets.insert(asset, asset_info);
+        Ok(())
+    })
+}
+
+#[ic_cdk::update]
+async fn validate_admin_update_supported_asset(
+    asset: Principal,
+    payment_fee: u128,
+) -> Result<String, String> {
+    let _ = check_supported_asset(asset, payment_fee).await?;
+    pretty_format(&(asset, payment_fee))
+}
+
+#[ic_cdk::update(guard = "is_controller")]
+async fn admin_remove_supported_asset(asset: Principal) -> Result<(), String> {
+    store::state::with_mut(|s| {
+        s.supported_assets.remove(&asset);
+        Ok(())
+    })
+}
+
+#[ic_cdk::update]
+async fn validate_remove_update_supported_asset(asset: Principal) -> Result<String, String> {
+    pretty_format(&(asset,))
+}
+
+async fn check_supported_asset(
+    asset: Principal,
+    payment_fee: u128,
+) -> Result<store::AssetInfo, String> {
+    let mut info = token_info(asset).await?;
+    if payment_fee < info.transfer_fee {
+        return Err(format!(
+            "payment fee {} is less than transfer fee {}",
+            payment_fee, info.transfer_fee
+        ));
+    }
+
+    info.payment_fee = payment_fee;
+    Ok(info)
+}
+
+#[ic_cdk::update(guard = "is_controller")]
+async fn admin_collect_fees(asset: Principal, to: Principal, amount: u128) -> Result<Nat, String> {
+    let value = store::state::with(|s| {
+        let info = s
+            .supported_assets
+            .get(&asset)
+            .ok_or_else(|| format!("asset {} is not supported", asset))?;
+        if amount <= info.transfer_fee {
+            return Err(format!("amount must be greater than {}", info.transfer_fee));
+        }
+
+        let balance = s
+            .total_collected_fees
+            .get(&asset)
+            .cloned()
+            .unwrap_or_default()
+            .saturating_sub(
+                s.total_withdrawn_fees
+                    .get(&asset)
+                    .cloned()
+                    .unwrap_or_default(),
+            );
+        if amount > balance {
+            return Err(format!(
+                "amount {} exceeds available fees {}",
+                amount, balance
+            ));
+        }
+        Ok(amount - info.transfer_fee)
+    })?;
+
+    let idx = transfer_token_to(
+        asset,
+        Account {
+            owner: to,
+            subaccount: None,
+        },
+        value,
+        None,
+    )
+    .await?;
+
+    store::state::with_mut(|s| {
+        s.total_withdrawn_fees
+            .entry(asset)
+            .and_modify(|v| *v = v.saturating_add(amount))
+            .or_insert(amount);
+    });
+    Ok(idx)
+}
+
+#[ic_cdk::update]
+async fn validate_admin_collect_fees(
+    asset: Principal,
+    to: Principal,
+    amount: u128,
+) -> Result<String, String> {
+    store::state::with(|s| {
+        let info = s
+            .supported_assets
+            .get(&asset)
+            .ok_or_else(|| format!("asset {} is not supported", asset))?;
+        if amount <= info.transfer_fee {
+            return Err(format!("amount must be greater than {}", info.transfer_fee));
+        }
+
+        let balance = s
+            .total_collected_fees
+            .get(&asset)
+            .cloned()
+            .unwrap_or_default()
+            .saturating_sub(
+                s.total_withdrawn_fees
+                    .get(&asset)
+                    .cloned()
+                    .unwrap_or_default(),
+            );
+        if amount > balance {
+            return Err(format!(
+                "amount {} exceeds available fees {}",
+                amount, balance
+            ));
+        }
+        Ok(())
+    })?;
+    pretty_format(&(asset, to, amount))
+}
+
+fn is_controller() -> Result<(), String> {
+    let caller = ic_cdk::api::msg_caller();
+    if ic_cdk::api::is_controller(&caller)
+        || store::state::with(|s| s.governance_canister == Some(caller))
+    {
+        Ok(())
+    } else {
+        Err("user is not a controller".to_string())
+    }
+}
+
+
+
+================================================
+FILE: rs/anda_x402_canister/src/api_http.rs
+================================================
+use anda_cloud_cdk::x402::{SettleResponse, VerifyResponse, X402Error, X402Request};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
+use candid::{CandidType, Principal};
+use ciborium::from_reader;
+use ic_auth_types::cbor_into_vec;
+use ic_http_certification::{HeaderField, HttpRequest, HttpUpdateRequest};
+use serde::{Deserialize, Serialize};
+use serde_bytes::ByteBuf;
+
+use crate::store;
+
+#[derive(CandidType, Deserialize, Serialize, Clone, Default)]
+pub struct HttpResponse {
+    pub status_code: u16,
+    pub headers: Vec<HeaderField>,
+    pub body: ByteBuf,
+    pub upgrade: Option<bool>,
+}
+
+struct HttpError {
+    status_code: u16,
+    message: String,
+}
+
+static CBOR: &str = "application/cbor";
+static JSON: &str = "application/json";
+static IC_CERTIFICATE_HEADER: &str = "ic-certificate";
+static IC_CERTIFICATE_EXPRESSION_HEADER: &str = "ic-certificateexpression";
+
+#[ic_cdk::query(hidden = true)]
+async fn http_request(request: HttpRequest<'static>) -> HttpResponse {
+    let req_path = request.get_path();
+    if request.method().as_str() == "POST"
+        && let Ok(path) = req_path.as_ref()
+        && path == "/settle"
+    {
+        return HttpResponse {
+            status_code: 200,
+            headers: vec![],
+            body: b"Upgrade".to_vec().into(),
+            upgrade: Some(true),
+        };
+    }
+
+    let witness = store::state::http_tree_with(|t| {
+        t.witness(&store::state::DEFAULT_CERT_ENTRY, request.url())
+            .expect("get witness failed")
+    });
+
+    let certified_data = ic_cdk::api::data_certificate().expect("no data certificate available");
+
+    let mut headers = vec![
+        ("x-content-type-options".to_string(), "nosniff".to_string()),
+        (
+            IC_CERTIFICATE_EXPRESSION_HEADER.to_string(),
+            store::state::DEFAULT_CEL_EXPR.clone(),
+        ),
+        (
+            IC_CERTIFICATE_HEADER.to_string(),
+            format!(
+                "certificate=:{}:, tree=:{}:, expr_path=:{}:, version=2",
+                BASE64.encode(certified_data),
+                BASE64.encode(cbor_into_vec(&witness).expect("failed to serialize witness")),
+                BASE64.encode(
+                    cbor_into_vec(&store::state::DEFAULT_EXPR_PATH.to_expr_path())
+                        .expect("failed to serialize expr path")
+                )
+            ),
+        ),
+    ];
+
+    let req_path = match req_path {
+        Ok(path) => path,
+        Err(err) => {
+            headers.push(("content-type".to_string(), "text/plain".to_string()));
+            return HttpResponse {
+                status_code: 400,
+                headers,
+                body: err.to_string().into_bytes().into(),
+                upgrade: None,
+            };
+        }
+    };
+
+    let in_cbor = supports_cbor(request.headers());
+
+    let rt = match (request.method().as_str(), req_path.as_str()) {
+        ("HEAD", _) => Ok(Vec::new()),
+        ("GET", "/") => get_info(in_cbor),
+        ("GET", "/supported") => get_supported(in_cbor),
+        ("POST", "/verify") => post_verify(request.body(), in_cbor).await,
+        (method, path) => Err(HttpError {
+            status_code: 404,
+            message: format!("method {method}, path: {path}"),
+        }),
+    };
+
+    match rt {
+        Ok(body) => {
+            if in_cbor {
+                headers.push(("content-type".to_string(), CBOR.to_string()));
+            } else {
+                headers.push(("content-type".to_string(), JSON.to_string()));
+            }
+            headers.push(("content-length".to_string(), body.len().to_string()));
+            HttpResponse {
+                status_code: 200,
+                headers,
+                body: body.into(),
+                upgrade: None,
+            }
+        }
+        Err(err) => {
+            headers.push(("content-type".to_string(), "text/plain".to_string()));
+            HttpResponse {
+                status_code: err.status_code,
+                headers,
+                body: err.message.into_bytes().into(),
+                upgrade: None,
+            }
+        }
+    }
+}
+
+#[ic_cdk::update(hidden = true)]
+async fn http_request_update(request: HttpUpdateRequest<'static>) -> HttpResponse {
+    let mut headers = vec![("x-content-type-options".to_string(), "nosniff".to_string())];
+
+    let req_path = match request.get_path() {
+        Ok(path) => path,
+        Err(err) => {
+            headers.push(("content-type".to_string(), "text/plain".to_string()));
+            return HttpResponse {
+                status_code: 400,
+                headers,
+                body: err.to_string().into_bytes().into(),
+                upgrade: None,
+            };
+        }
+    };
+
+    let in_cbor = supports_cbor(request.headers());
+
+    let rt = match (request.method().as_str(), req_path.as_str()) {
+        ("POST", "/settle") => post_settle(request.body(), in_cbor).await,
+        (method, path) => Err(HttpError {
+            status_code: 404,
+            message: format!("method {method}, path: {path}"),
+        }),
+    };
+
+    match rt {
+        Ok(body) => {
+            if in_cbor {
+                headers.push(("content-type".to_string(), CBOR.to_string()));
+            } else {
+                headers.push(("content-type".to_string(), JSON.to_string()));
+            }
+            headers.push(("content-length".to_string(), body.len().to_string()));
+            HttpResponse {
+                status_code: 200,
+                headers,
+                body: body.into(),
+                upgrade: None,
+            }
+        }
+        Err(err) => {
+            headers.push(("content-type".to_string(), "text/plain".to_string()));
+            HttpResponse {
+                status_code: err.status_code,
+                headers,
+                body: err.message.into_bytes().into(),
+                upgrade: None,
+            }
+        }
+    }
+}
+
+fn get_supported(in_cbor: bool) -> Result<Vec<u8>, HttpError> {
+    let body = store::state::supported();
+    if in_cbor {
+        cbor_into_vec(&body).map_err(|err| HttpError {
+            status_code: 500,
+            message: format!("failed to serialize supported payments, error: {err}"),
+        })
+    } else {
+        serde_json::to_vec(&body).map_err(|err| HttpError {
+            status_code: 500,
+            message: format!("failed to serialize supported payments, error: {err}"),
+        })
+    }
+}
+
+fn get_info(in_cbor: bool) -> Result<Vec<u8>, HttpError> {
+    let body = store::state::info();
+    if in_cbor {
+        cbor_into_vec(&body).map_err(|err| HttpError {
+            status_code: 500,
+            message: format!("failed to serialize state, error: {err}"),
+        })
+    } else {
+        serde_json::to_vec(&body).map_err(|err| HttpError {
+            status_code: 500,
+            message: format!("failed to serialize state, error: {err}"),
+        })
+    }
+}
+
+async fn post_verify(body: &[u8], in_cbor: bool) -> Result<Vec<u8>, HttpError> {
+    let canister_self = ic_cdk::api::canister_self();
+    let now_ms = ic_cdk::api::time() / 1_000_000;
+
+    let req = match decode_payment(body, in_cbor) {
+        Ok(req) => verify_payment(canister_self, req, now_ms).await,
+        Err(err) => Err((err, None)),
+    };
+    let res = match req {
+        Ok(payer) => VerifyResponse::valid(payer.to_string()),
+        Err((err, maybe_payer)) => {
+            let payer_str = maybe_payer
+                .map(|p| p.to_string())
+                .unwrap_or_else(|| "".to_string());
+            VerifyResponse::invalid(payer_str, err)
+        }
+    };
+
+    if in_cbor {
+        cbor_into_vec(&res).map_err(|err| HttpError {
+            status_code: 500,
+            message: format!("failed to serialize VerifyResponse, error: {err}"),
+        })
+    } else {
+        serde_json::to_vec(&res).map_err(|err| HttpError {
+            status_code: 500,
+            message: format!("failed to serialize VerifyResponse, error: {err}"),
+        })
+    }
+}
+
+async fn post_settle(body: &[u8], in_cbor: bool) -> Result<Vec<u8>, HttpError> {
+    let canister_self = ic_cdk::api::canister_self();
+    let now_ms = ic_cdk::api::time() / 1_000_000;
+    let network = "icp".to_string();
+
+    let req = match decode_payment(body, in_cbor) {
+        Ok(req) => settle_payment(canister_self, req, now_ms).await,
+        Err(err) => Err((err, None)),
+    };
+    let res = match req {
+        Ok((payer, transaction)) => SettleResponse {
+            success: true,
+            error_reason: None,
+            payer: payer.to_string(),
+            transaction,
+            network,
+        },
+        Err((err, maybe_payer)) => {
+            let payer_str = maybe_payer
+                .map(|p| p.to_string())
+                .unwrap_or_else(|| "".to_string());
+            SettleResponse {
+                success: false,
+                error_reason: Some(err.to_string()),
+                payer: payer_str,
+                transaction: "".to_string(),
+                network,
+            }
+        }
+    };
+
+    if in_cbor {
+        cbor_into_vec(&res).map_err(|err| HttpError {
+            status_code: 500,
+            message: format!("failed to serialize VerifyResponse, error: {err}"),
+        })
+    } else {
+        serde_json::to_vec(&res).map_err(|err| HttpError {
+            status_code: 500,
+            message: format!("failed to serialize VerifyResponse, error: {err}"),
+        })
+    }
+}
+
+fn decode_payment(body: &[u8], in_cbor: bool) -> Result<X402Request, X402Error> {
+    let req: X402Request = if in_cbor {
+        from_reader(body)
+            .map_err(|err| X402Error::InvalidPayload(format!("failed to decode cbor: {err}")))?
+    } else {
+        serde_json::from_slice(body)
+            .map_err(|err| X402Error::InvalidPayload(format!("failed to decode json: {err}")))?
+    };
+
+    req.validate()?;
+    Ok(req)
+}
+
+async fn verify_payment(
+    canister_self: Principal,
+    req: X402Request,
+    now_ms: u64,
+) -> Result<Principal, (X402Error, Option<Principal>)> {
+    let payer = req
+        .payment_payload
+        .payload
+        .verify_signature(now_ms, Some(canister_self))
+        .map_err(|err| (X402Error::InvalidPayloadAuthorizationSignature(err), None))?;
+
+    let _ = store::state::verify_payload(payer, &req.payment_payload, now_ms)
+        .map_err(|err| (err, Some(payer)))?;
+    // `check_funds` relies on Inter-canister calls, which leads to expensive update calls.
+    // To optimize the verification process, we skip the fund checking here.
+    // let required_amount = req
+    //     .payment_payload
+    //     .payload
+    //     .authorization
+    //     .value
+    //     .0
+    //     .checked_add(asset_info.transfer_fee)
+    //     .ok_or_else(|| {
+    //         (
+    //             X402Error::InvalidPayload("payment amount overflow".to_string()),
+    //             Some(payer),
+    //         )
+    //     })?;
+    //
+    // store::state::check_funds(
+    //     payer,
+    //     canister_self,
+    //     req.payment_requirements.asset,
+    //     required_amount,
+    //     now_ms,
+    // )
+    // .await
+    // .map_err(|err| (err, Some(payer)))?;
+    Ok(payer)
+}
+
+async fn settle_payment(
+    canister_self: Principal,
+    req: X402Request,
+    now_ms: u64,
+) -> Result<(Principal, String), (X402Error, Option<Principal>)> {
+    let payer = req
+        .payment_payload
+        .payload
+        .verify_signature(now_ms, Some(canister_self))
+        .map_err(|err| (X402Error::InvalidPayloadAuthorizationSignature(err), None))?;
+
+    let asset_info = store::state::verify_payload(payer, &req.payment_payload, now_ms)
+        .map_err(|err| (err, Some(payer)))?;
+
+    let log = store::PaymentLog {
+        scheme: req.payment_payload.payload.authorization.scheme,
+        asset: req.payment_requirements.asset,
+        from: payer,
+        to: req.payment_requirements.pay_to,
+        value: req.payment_payload.payload.authorization.value.0,
+        fee: asset_info.payment_fee,
+        expires_at: req.payment_payload.payload.authorization.expires_at,
+        nonce: req.payment_payload.payload.authorization.nonce,
+        timestamp: now_ms,
+    };
+
+    let tx = store::state::transfer_funds(canister_self, log, asset_info.transfer_fee)
+        .await
+        .map_err(|err| (err, Some(payer)))?;
+    Ok((payer, tx))
+}
+
+fn supports_cbor(headers: &[HeaderField]) -> bool {
+    headers
+        .iter()
+        .any(|(name, value)| (name == "accept" || name == "content-type") && value.contains(CBOR))
+}
+
+
+
+================================================
+FILE: rs/anda_x402_canister/src/api_init.rs
+================================================
+use anda_cloud_cdk::x402::{Scheme, SupportedPaymentKind, X402Version};
+use candid::{CandidType, Principal};
+use serde::Deserialize;
+use std::collections::BTreeSet;
+
+use crate::store;
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub enum CanisterArgs {
+    Init(InitArgs),
+    Upgrade(UpgradeArgs),
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub struct InitArgs {
+    pub name: String,
+    pub governance_canister: Option<Principal>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+pub struct UpgradeArgs {
+    pub name: Option<String>,
+    pub governance_canister: Option<Principal>,
+}
+
+#[ic_cdk::init]
+fn init(args: Option<CanisterArgs>) {
+    if let Some(CanisterArgs::Init(args)) = args {
+        store::state::with_mut(|s| {
+            s.name = args.name;
+
+            let network = "icp".to_string();
+            s.supported_payments = BTreeSet::from([SupportedPaymentKind {
+                x402_version: X402Version::V1,
+                scheme: Scheme::Exact,
+                network,
+            }]);
+            s.governance_canister = args.governance_canister;
+        });
+    } else if let Some(CanisterArgs::Upgrade(_)) = args {
+        ic_cdk::trap("cannot init the canister with an Upgrade args. Please provide an Init args.");
+    }
+
+    store::state::init_http_certified_data();
+}
+
+#[ic_cdk::pre_upgrade]
+fn pre_upgrade() {
+    store::state::save();
+}
+
+#[ic_cdk::post_upgrade]
+fn post_upgrade(args: Option<CanisterArgs>) {
+    store::state::load();
+
+    match args {
+        Some(CanisterArgs::Upgrade(args)) => store::state::with_mut(|s| {
+            if let Some(name) = args.name {
+                s.name = name;
+            }
+
+            if let Some(governance_canister) = args.governance_canister {
+                s.governance_canister = Some(governance_canister);
+            }
+        }),
+        Some(CanisterArgs::Init(_)) => {
+            ic_cdk::trap(
+                "cannot upgrade the canister with an Init args. Please provide an Upgrade args.",
+            );
+        }
+        _ => {}
+    }
+
+    store::state::init_http_certified_data();
+}
+
+
+
+================================================
+FILE: rs/anda_x402_canister/src/helper.rs
+================================================
+use candid::{
+    CandidType, IDLValue, Nat, Principal, pretty::candid::value::pp_value, utils::ArgumentEncoder,
+};
+use icrc_ledger_types::{
+    icrc::generic_metadata_value::MetadataValue,
+    icrc1::{
+        account::Account,
+        transfer::{Memo, TransferArg, TransferError},
+    },
+    icrc2::{
+        allowance::{Allowance, AllowanceArgs},
+        transfer_from::{TransferFromArgs, TransferFromError},
+    },
+};
+use num_traits::cast::ToPrimitive;
+
+use crate::store;
+
+const ANONYMOUS: Principal = Principal::anonymous();
+pub fn msg_caller() -> Result<Principal, String> {
+    let caller = ic_cdk::api::msg_caller();
+    check_auth(&caller)?;
+    Ok(caller)
+}
+
+pub fn check_auth(user: &Principal) -> Result<(), String> {
+    if user == &ANONYMOUS {
+        Err("anonymous user is not allowed".to_string())
+    } else {
+        Ok(())
+    }
+}
+
+pub async fn call<In, Out>(
+    id: Principal,
+    method: &str,
+    args: In,
+    cycles: u128,
+) -> Result<Out, String>
+where
+    In: ArgumentEncoder + Send,
+    Out: candid::CandidType + for<'a> candid::Deserialize<'a>,
+{
+    let res = ic_cdk::call::Call::bounded_wait(id, method)
+        .with_args(&args)
+        .with_cycles(cycles)
+        .await
+        .map_err(|err| format!("failed to call {} on {:?}, error: {:?}", method, &id, err))?;
+    res.candid().map_err(|err| {
+        format!(
+            "failed to decode response from {} on {:?}, error: {:?}",
+            method, &id, err
+        )
+    })
+}
+
+pub fn pretty_format<T>(data: &T) -> Result<String, String>
+where
+    T: CandidType,
+{
+    let val = IDLValue::try_from_candid_type(data).map_err(|err| format!("{err:?}"))?;
+    let doc = pp_value(7, &val);
+
+    Ok(format!("{}", doc.pretty(120)))
+}
+
+pub async fn transfer_token_to(
+    asset: Principal,
+    to: Account,
+    amount: u128,
+    memo: Option<Memo>,
+) -> Result<Nat, String> {
+    let res: Result<Nat, TransferError> = call(
+        asset,
+        "icrc1_transfer",
+        (TransferArg {
+            from_subaccount: None,
+            to,
+            fee: None,
+            created_at_time: None,
+            memo,
+            amount: amount.into(),
+        },),
+        0,
+    )
+    .await?;
+    res.map_err(|err| format!("failed to transfer tokens, error: {:?}", err))
+}
+
+pub async fn transfer_token_from(
+    asset: Principal,
+    from: Principal,
+    to: Principal,
+    amount: u128,
+    memo: Option<Memo>,
+) -> Result<Nat, String> {
+    let res: Result<Nat, TransferFromError> = call(
+        asset,
+        "icrc2_transfer_from",
+        (TransferFromArgs {
+            spender_subaccount: None,
+            from: Account {
+                owner: from,
+                subaccount: None,
+            },
+            to: Account {
+                owner: to,
+                subaccount: None,
+            },
+            fee: None,
+            created_at_time: None,
+            memo,
+            amount: amount.into(),
+        },),
+        0,
+    )
+    .await?;
+    res.map_err(|err| format!("failed to transfer tokens from user, error: {:?}", err))
+}
+
+#[allow(dead_code)]
+pub async fn token_allowance(
+    asset: Principal,
+    from: Principal,
+    spender: Principal,
+) -> Result<Allowance, String> {
+    let res: Allowance = call(
+        asset,
+        "icrc2_allowance",
+        (AllowanceArgs {
+            account: Account {
+                owner: from,
+                subaccount: None,
+            },
+            spender: Account {
+                owner: spender,
+                subaccount: None,
+            },
+        },),
+        0,
+    )
+    .await?;
+    Ok(res)
+}
+
+pub async fn token_info(asset: Principal) -> Result<store::AssetInfo, String> {
+    let res: Vec<(String, MetadataValue)> = call(asset, "icrc1_metadata", (), 0).await?;
+    let mut info = store::AssetInfo::default();
+    for (key, value) in res {
+        match (key.as_str(), value) {
+            ("icrc1:name", MetadataValue::Text(val)) => info.name = val,
+            ("icrc1:symbol", MetadataValue::Text(val)) => info.symbol = val,
+            ("icrc1:logo", MetadataValue::Text(val)) => info.logo = Some(val),
+            ("icrc1:decimals", MetadataValue::Nat(val)) => {
+                info.decimals = val.0.to_u8().unwrap_or_default()
+            }
+            ("icrc1:fee", MetadataValue::Nat(val)) => {
+                info.transfer_fee = val.0.to_u128().unwrap_or_default()
+            }
+            _ => {}
+        }
+    }
+
+    if info.symbol.is_empty() {
+        return Err("asset symbol is missing".to_string());
+    }
+    if info.decimals == 0 {
+        return Err("asset decimals is missing".to_string());
+    }
+    if info.transfer_fee == 0 {
+        return Err("asset transfer fee is missing".to_string());
+    }
+    if info.name.is_empty() {
+        info.name = info.symbol.clone();
+    }
+    Ok(info)
+}
+
+
+
+================================================
+FILE: rs/anda_x402_canister/src/lib.rs
+================================================
+use candid::{Nat, Principal};
+
+use crate::api_init::CanisterArgs;
+
+mod api;
+mod api_admin;
+mod api_http;
+mod api_init;
+mod helper;
+mod store;
+
+ic_cdk::export_candid!();
+
+
+
+================================================
+FILE: rs/anda_x402_canister/src/store.rs
+================================================
+use anda_cloud_cdk::x402::*;
+use candid::{CandidType, Principal};
+use ciborium::{from_reader, into_writer};
+use ic_http_certification::{
+    HttpCertification, HttpCertificationPath, HttpCertificationTree, HttpCertificationTreeEntry,
+    cel::{DefaultCelBuilder, create_cel_expr},
+};
+use ic_stable_structures::{
+    DefaultMemoryImpl, StableBTreeMap, StableCell, StableLog, Storable,
+    memory_manager::{MemoryId, MemoryManager, VirtualMemory},
+    storable::Bound,
+};
+use serde::{Deserialize, Serialize};
+use std::{
+    borrow::Cow,
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet},
+    time::Duration,
+};
+
+use crate::helper::{token_allowance, transfer_token_from};
+
+const CLOCK_SKEW_MS: u64 = 1000 * 60; // 1 minute
+
+type Memory = VirtualMemory<DefaultMemoryImpl>;
+
+#[derive(Clone, Default, Deserialize, Serialize)]
+pub struct State {
+    pub name: String, // facilitator name
+    #[serde(default)]
+    pub key_name: String,
+    pub supported_payments: BTreeSet<SupportedPaymentKind>,
+    pub supported_assets: BTreeMap<Principal, AssetInfo>,
+    pub total_collected_fees: BTreeMap<Principal, u128>,
+    pub total_withdrawn_fees: BTreeMap<Principal, u128>,
+    pub governance_canister: Option<Principal>,
+}
+
+#[derive(Clone, CandidType, Default, Deserialize, Serialize)]
+pub struct StateInfo {
+    pub name: String, // facilitator name
+    #[serde(default)]
+    pub key_name: String,
+    pub supported_payments: BTreeSet<SupportedPaymentKind>,
+    pub supported_assets: BTreeMap<Principal, AssetInfo>,
+    pub total_collected_fees: BTreeMap<Principal, u128>,
+    pub total_withdrawn_fees: BTreeMap<Principal, u128>,
+    pub governance_canister: Option<Principal>,
+}
+
+impl From<&State> for StateInfo {
+    fn from(state: &State) -> Self {
+        StateInfo {
+            name: state.name.clone(),
+            key_name: state.key_name.clone(),
+            supported_payments: state.supported_payments.clone(),
+            supported_assets: state
+                .supported_assets
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        *k,
+                        AssetInfo {
+                            name: v.name.clone(),
+                            symbol: v.symbol.clone(),
+                            decimals: v.decimals,
+                            transfer_fee: v.transfer_fee,
+                            payment_fee: v.payment_fee,
+                            logo: None, // do not expose logo in info, reduce data size
+                        },
+                    )
+                })
+                .collect(),
+            total_collected_fees: state.total_collected_fees.clone(),
+            total_withdrawn_fees: state.total_withdrawn_fees.clone(),
+            governance_canister: state.governance_canister,
+        }
+    }
+}
+
+#[derive(Clone, CandidType, Default, Deserialize, Serialize)]
+pub struct AssetInfo {
+    #[serde(default)]
+    pub name: String,
+    pub symbol: String,
+    pub decimals: u8,
+    pub transfer_fee: u128,
+    pub payment_fee: u128,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logo: Option<String>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+struct PayerState {
+    #[serde(rename = "n")]
+    pub next_nonce: u64,
+    #[serde(rename = "t")]
+    pub total_sent: BTreeMap<Principal, u128>,
+    #[serde(rename = "l")]
+    pub logs: BTreeSet<u64>,
+}
+
+#[derive(Clone, CandidType, Deserialize, Serialize)]
+pub struct PayerStateInfo {
+    pub next_nonce: u64,
+    pub total_sent: BTreeMap<Principal, u128>,
+    pub logs: BTreeSet<u64>,
+}
+
+impl Default for PayerState {
+    fn default() -> Self {
+        PayerState {
+            next_nonce: 1,
+            total_sent: BTreeMap::new(),
+            logs: BTreeSet::new(),
+        }
+    }
+}
+
+impl From<PayerState> for PayerStateInfo {
+    fn from(state: PayerState) -> Self {
+        PayerStateInfo {
+            next_nonce: state.next_nonce,
+            total_sent: state.total_sent,
+            logs: state.logs,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PaymentLog {
+    #[serde(rename = "s")]
+    pub scheme: Scheme,
+    #[serde(rename = "a")]
+    pub asset: Principal,
+    #[serde(rename = "f")]
+    pub from: Principal,
+    #[serde(rename = "t")]
+    pub to: Principal,
+    #[serde(rename = "v")]
+    pub value: u128,
+    #[serde(rename = "fe")]
+    pub fee: u128,
+    #[serde(rename = "e")]
+    pub expires_at: u64,
+    #[serde(rename = "n")]
+    pub nonce: u64,
+    #[serde(rename = "ts")]
+    pub timestamp: u64, // in milliseconds
+}
+
+#[derive(Clone, CandidType, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentLogInfo {
+    pub id: u64,
+    pub scheme: Scheme,
+    pub asset: Principal,
+    pub from: Principal,
+    pub to: Principal,
+    pub value: String,
+    pub fee: String,
+    pub expires_at: u64,
+    pub nonce: u64,
+    pub timestamp: u64, // in milliseconds
+}
+
+impl From<PaymentLog> for PaymentLogInfo {
+    fn from(log: PaymentLog) -> Self {
+        PaymentLogInfo {
+            id: 0,
+            scheme: log.scheme,
+            asset: log.asset,
+            from: log.from,
+            to: log.to,
+            value: log.value.to_string(),
+            fee: log.fee.to_string(),
+            expires_at: log.expires_at,
+            nonce: log.nonce,
+            timestamp: log.timestamp,
+        }
+    }
+}
+
+impl Storable for PayerState {
+    const BOUND: Bound = Bound::Unbounded;
+
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
+        let mut buf = vec![];
+        into_writer(self, &mut buf).expect("failed to encode PayerState data");
+        Cow::Owned(buf)
+    }
+
+    fn into_bytes(self) -> Vec<u8> {
+        let mut buf = vec![];
+        into_writer(&self, &mut buf).expect("failed to encode PayerState data");
+        buf
+    }
+
+    fn from_bytes(bytes: Cow<'_, [u8]>) -> Self {
+        from_reader(&bytes[..]).expect("failed to decode PayerState data")
+    }
+}
+
+impl Storable for PaymentLog {
+    const BOUND: Bound = Bound::Unbounded;
+
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
+        let mut buf = vec![];
+        into_writer(self, &mut buf).expect("failed to encode PaymentLog data");
+        Cow::Owned(buf)
+    }
+
+    fn into_bytes(self) -> Vec<u8> {
+        let mut buf = vec![];
+        into_writer(&self, &mut buf).expect("failed to encode PaymentLog data");
+        buf
+    }
+
+    fn from_bytes(bytes: Cow<'_, [u8]>) -> Self {
+        from_reader(&bytes[..]).expect("failed to decode PaymentLog data")
+    }
+}
+
+const STATE_MEMORY_ID: MemoryId = MemoryId::new(0);
+const PAYER_STATE_MEMORY_ID: MemoryId = MemoryId::new(1);
+const LOGS_INDEX_MEMORY_ID: MemoryId = MemoryId::new(2);
+const LOGS_DATA_MEMORY_ID: MemoryId = MemoryId::new(3);
+
+thread_local! {
+    static STATE: RefCell<State> = RefCell::new(State::default());
+    static HTTP_TREE: RefCell<HttpCertificationTree> = RefCell::new(HttpCertificationTree::default());
+
+    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
+        RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
+
+    static STATE_STORE: RefCell<StableCell<Vec<u8>, Memory>> = RefCell::new(
+        StableCell::init(
+            MEMORY_MANAGER.with_borrow(|m| m.get(STATE_MEMORY_ID)),
+            Vec::new()
+        )
+    );
+
+    static PAYER_STATE: RefCell<StableBTreeMap<Principal, PayerState, Memory>> = RefCell::new(
+        StableBTreeMap::init(
+            MEMORY_MANAGER.with_borrow(|m| m.get(PAYER_STATE_MEMORY_ID)),
+        )
+    );
+
+    static LOGS: RefCell<StableLog<PaymentLog, Memory, Memory>> = RefCell::new(
+        StableLog::init(
+            MEMORY_MANAGER.with_borrow(|m| m.get(LOGS_INDEX_MEMORY_ID)),
+            MEMORY_MANAGER.with_borrow(|m| m.get(LOGS_DATA_MEMORY_ID)),
+        )
+    );
+}
+
+pub mod state {
+    use super::*;
+    use lazy_static::lazy_static;
+    use once_cell::sync::Lazy;
+
+    lazy_static! {
+        pub static ref DEFAULT_EXPR_PATH: HttpCertificationPath<'static> =
+            HttpCertificationPath::wildcard("");
+        pub static ref DEFAULT_CERTIFICATION: HttpCertification = HttpCertification::skip();
+        pub static ref DEFAULT_CEL_EXPR: String =
+            create_cel_expr(&DefaultCelBuilder::skip_certification());
+    }
+
+    pub static DEFAULT_CERT_ENTRY: Lazy<HttpCertificationTreeEntry> =
+        Lazy::new(|| HttpCertificationTreeEntry::new(&*DEFAULT_EXPR_PATH, *DEFAULT_CERTIFICATION));
+
+    pub fn with<R>(f: impl FnOnce(&State) -> R) -> R {
+        STATE.with_borrow(f)
+    }
+
+    pub fn with_mut<R>(f: impl FnOnce(&mut State) -> R) -> R {
+        STATE.with_borrow_mut(f)
+    }
+
+    pub fn http_tree_with<R>(f: impl FnOnce(&HttpCertificationTree) -> R) -> R {
+        HTTP_TREE.with(|r| f(&r.borrow()))
+    }
+
+    pub fn init_http_certified_data() {
+        HTTP_TREE.with(|r| {
+            let mut tree = r.borrow_mut();
+            tree.insert(&DEFAULT_CERT_ENTRY);
+            ic_cdk::api::certified_data_set(tree.root_hash())
+        });
+    }
+
+    pub fn load() {
+        STATE_STORE.with_borrow(|r| {
+            STATE.with_borrow_mut(|h| {
+                let bytes = r.get();
+                if bytes.is_empty() {
+                    return;
+                }
+                let v: State = from_reader(&bytes[..]).expect("failed to decode STATE_STORE data");
+                *h = v;
+            });
+        });
+    }
+
+    pub fn save() {
+        STATE.with_borrow(|h| {
+            STATE_STORE.with_borrow_mut(|r| {
+                let mut buf = vec![];
+                into_writer(h, &mut buf).expect("failed to encode STATE_STORE data");
+                r.set(buf);
+            });
+        });
+    }
+
+    pub fn info() -> StateInfo {
+        with(|s| s.into())
+    }
+
+    pub fn supported() -> SupportedPaymentKindsResponse {
+        with(|state| SupportedPaymentKindsResponse {
+            kinds: state.supported_payments.clone().into_iter().collect(),
+        })
+    }
+
+    pub fn next_nonce(caller: Principal) -> u64 {
+        PAYER_STATE.with_borrow(|r| {
+            let s = r.get(&caller).unwrap_or_default();
+            s.next_nonce
+        })
+    }
+
+    pub fn payer_info(caller: Principal) -> PayerStateInfo {
+        PAYER_STATE.with_borrow(|r| {
+            let s = r.get(&caller).unwrap_or_default();
+            s.into()
+        })
+    }
+
+    pub fn user_logs(user: Principal, take: usize, prev: Option<u64>) -> Vec<PaymentLogInfo> {
+        PAYER_STATE.with_borrow(|r| {
+            let item = r.get(&user).unwrap_or_default();
+            if item.logs.is_empty() {
+                return vec![];
+            }
+            let ids = item
+                .logs
+                .range(..prev.unwrap_or(u64::MAX))
+                .rev()
+                .take(take)
+                .cloned()
+                .collect::<Vec<u64>>();
+
+            if ids.is_empty() {
+                return vec![];
+            }
+
+            LOGS.with_borrow(|log_store| {
+                let mut logs: Vec<PaymentLogInfo> = Vec::with_capacity(ids.len());
+                for id in ids {
+                    if let Some(log) = log_store.get(id) {
+                        let mut log: PaymentLogInfo = log.into();
+                        log.id = id;
+                        logs.push(log);
+                    }
+                }
+                logs
+            })
+        })
+    }
+
+    pub fn verify_payload(
+        payer: Principal,
+        payload: &PaymentPayload,
+        now_ms: u64,
+    ) -> Result<AssetInfo, X402Error> {
+        if payload.payload.authorization.expires_at < now_ms + CLOCK_SKEW_MS {
+            return Err(X402Error::InvalidPayload(format!(
+                "Expired authorization: {}, current time: {}",
+                payload.payload.authorization.expires_at, now_ms
+            )));
+        }
+
+        let asset_info = with(|state| {
+            if &payload.network != "icp" {
+                return Err(X402Error::InvalidNetwork(format!(
+                    "{}, expected: icp",
+                    payload.network
+                )));
+            }
+
+            let supported_payments = state
+                .supported_payments
+                .iter()
+                .filter(|kind| kind.x402_version == payload.x402_version)
+                .collect::<Vec<&SupportedPaymentKind>>();
+            if supported_payments.is_empty() {
+                return Err(X402Error::InvalidX402Version(payload.x402_version.into()));
+            }
+            if !supported_payments
+                .iter()
+                .any(|&kind| kind.scheme == payload.scheme)
+            {
+                return Err(X402Error::UnsupportedScheme(payload.scheme.to_string()));
+            }
+
+            let asset_info = state
+                .supported_assets
+                .get(&payload.payload.authorization.asset)
+                .cloned()
+                .ok_or_else(|| {
+                    X402Error::InvalidPayloadAuthorizationValidAsset(format!(
+                        "Unsupported asset: {}",
+                        payload.payload.authorization.asset
+                    ))
+                })?;
+            if payload.payload.authorization.value.0 <= asset_info.payment_fee {
+                return Err(X402Error::InvalidPayloadAuthorizationValue(format!(
+                    "Authorization value {} is not sufficient to cover payment fee {}",
+                    payload.payload.authorization.value.0, asset_info.payment_fee
+                )));
+            }
+            Ok(asset_info)
+        })?;
+
+        PAYER_STATE.with_borrow(|r| {
+            let s = r.get(&payer).unwrap_or_default();
+            if s.next_nonce != payload.payload.authorization.nonce {
+                return Err(X402Error::VerifyError(format!(
+                    "Invalid nonce: {}, expected: {}",
+                    payload.payload.authorization.nonce, s.next_nonce
+                )));
+            }
+            Ok(())
+        })?;
+
+        Ok(asset_info)
+    }
+
+    #[allow(dead_code)]
+    pub async fn check_funds(
+        payer: Principal,
+        canister_self: Principal,
+        asset: Principal,
+        amount: u128,
+        now_ms: u64,
+    ) -> Result<(), X402Error> {
+        let res = token_allowance(asset, payer, canister_self)
+            .await
+            .map_err(|err| {
+                X402Error::VerifyError(format!("Failed to get token allowance: {}", err))
+            })?;
+        if let Some(expires_at) = res.expires_at
+            && expires_at <= now_ms
+        {
+            return Err(X402Error::VerifyError(format!(
+                "Token allowance expired at {}, current time: {}",
+                expires_at, now_ms
+            )));
+        }
+
+        if res.allowance < amount {
+            return Err(X402Error::InsufficientFunds(format!(
+                "{}, required: {}",
+                res.allowance, amount
+            )));
+        }
+
+        Ok(())
+    }
+
+    pub async fn transfer_funds(
+        canister_self: Principal,
+        log: PaymentLog,
+        transfer_fee: u128,
+    ) -> Result<String, X402Error> {
+        let idx = transfer_token_from(
+            log.asset,
+            log.from,
+            log.to,
+            log.value.saturating_sub(log.fee),
+            Some(log.nonce.into()),
+        )
+        .await
+        .map_err(|err| {
+            X402Error::SettleError(format!("Failed to transfer payment fee: {}", err))
+        })?;
+
+        let log_id = LOGS
+            .with_borrow_mut(|r| r.append(&log))
+            .expect("failed to append to LOGS");
+
+        let tx = format!("{log_id}:{}:{idx}", log.asset);
+        PAYER_STATE.with_borrow_mut(|r| {
+            let mut s = r.get(&log.from).unwrap_or_default();
+            s.next_nonce = s.next_nonce.saturating_add(1);
+            let total_sent = s.total_sent.entry(log.asset).or_insert(0);
+            *total_sent = total_sent.saturating_add(log.value);
+            s.logs.insert(log_id);
+            r.insert(log.from, s);
+        });
+
+        if log.fee > 0 {
+            // run in background
+            ic_cdk_timers::set_timer(Duration::from_secs(0), move || {
+                let asset = log.asset;
+                let payer = log.from;
+                let canister_self = canister_self;
+                let fee = log.fee.saturating_sub(transfer_fee);
+                let nonce = log.nonce;
+                ic_cdk::futures::spawn(async move {
+                    let res =
+                        transfer_token_from(asset, payer, canister_self, fee, Some(nonce.into()))
+                            .await;
+
+                    if res.is_ok() {
+                        STATE.with_borrow_mut(|state| {
+                            let total = state.total_collected_fees.entry(asset).or_insert(0);
+                            *total = total.saturating_add(fee);
+                        });
+                    }
+                });
+            });
+        }
+
+        Ok(tx)
+    }
+}
+
+

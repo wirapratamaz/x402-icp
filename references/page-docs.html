@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation // x402.icp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Anime.js for smooth transitions -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <!-- Prism.js for code highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #050505;
+            --bg-sidebar: #0a0a0a;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #e5e5e5;
+            --text-secondary: #a3a3a3;
+            --accent: #ffffff;
+        }
+        
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-sidebar); }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Typography overrides for Markdown feel */
+        .prose h1 { font-size: 2.25rem; font-weight: 700; margin-bottom: 1.5rem; letter-spacing: -0.025em; color: white; }
+        .prose h2 { font-size: 1.5rem; font-weight: 600; margin-top: 2.5rem; margin-bottom: 1rem; color: white; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+        .prose h3 { font-size: 1.25rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.75rem; color: white; }
+        .prose p { margin-bottom: 1.25rem; line-height: 1.75; color: var(--text-secondary); }
+        .prose ul { margin-bottom: 1.25rem; list-style-type: disc; padding-left: 1.5rem; color: var(--text-secondary); }
+        .prose li { margin-bottom: 0.5rem; }
+        .prose code { background: rgba(255,255,255,0.1); padding: 0.2em 0.4em; border-radius: 4px; font-size: 0.875em; font-family: 'JetBrains Mono', monospace; color: #fff; }
+        .prose pre { margin-top: 1rem; margin-bottom: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color); background: #0f0f0f !important; }
+
+        /* Nav Link Active State */
+        .nav-item.active {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border-right: 2px solid white;
+        }
+
+        .content-section {
+            display: none;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        .content-section.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 flex-shrink-0 border-r border-white/10 bg-[#0a0a0a] flex flex-col h-full z-20">
+        <!-- Logo Area -->
+        <div class="h-16 flex items-center px-6 border-b border-white/10">
+            <a href="index.html" class="flex items-center gap-2 font-mono font-bold tracking-tighter text-lg hover:opacity-80 transition-opacity">
+                <i data-lucide="arrow-left" class="w-4 h-4 text-gray-500"></i>
+                x402<span class="text-white/40">.docs</span>
+            </a>
+        </div>
+
+        <!-- Search (Visual Only) -->
+        <div class="p-4">
+            <div class="relative group">
+                <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-500 group-focus-within:text-white transition-colors"></i>
+                <input type="text" placeholder="Search documentation..." class="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-9 pr-4 text-sm text-gray-300 focus:outline-none focus:border-white/30 transition-colors font-mono placeholder:text-gray-600">
+                <div class="absolute right-3 top-2.5 text-[10px] text-gray-600 border border-white/10 px-1.5 rounded bg-white/5 font-mono">⌘K</div>
+            </div>
+        </div>
+
+        <!-- Navigation Tree -->
+        <nav class="flex-1 overflow-y-auto px-4 py-2 space-y-8">
+            
+            <!-- Group: Getting Started -->
+            <div>
+                <h4 class="text-xs font-mono font-bold text-gray-500 uppercase tracking-wider mb-3 px-2">Getting Started</h4>
+                <div class="space-y-1">
+                    <button onclick="switchTab('intro')" id="nav-intro" class="nav-item w-full text-left px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all active">
+                        Introduction
+                    </button>
+                    <button onclick="switchTab('quickstart')" id="nav-quickstart" class="nav-item w-full text-left px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all">
+                        Quick Start
+                    </button>
+                    <button onclick="switchTab('architecture')" id="nav-architecture" class="nav-item w-full text-left px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all">
+                        Architecture
+                    </button>
+                </div>
+            </div>
+
+            <!-- Group: Core Concepts -->
+            <div>
+                <h4 class="text-xs font-mono font-bold text-gray-500 uppercase tracking-wider mb-3 px-2">Core Concepts</h4>
+                <div class="space-y-1">
+                    <button onclick="switchTab('protocol')" id="nav-protocol" class="nav-item w-full text-left px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all">
+                        The x402 Protocol
+                    </button>
+                    <button onclick="switchTab('ckbtc')" id="nav-ckbtc" class="nav-item w-full text-left px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all">
+                        ckBTC & ICRC-2
+                    </button>
+                    <button onclick="switchTab('facilitator')" id="nav-facilitator" class="nav-item w-full text-left px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all">
+                        Facilitator (Anda)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Group: API Reference -->
+            <div>
+                <h4 class="text-xs font-mono font-bold text-gray-500 uppercase tracking-wider mb-3 px-2">Developers</h4>
+                <div class="space-y-1">
+                    <button onclick="switchTab('api')" id="nav-api" class="nav-item w-full text-left px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all">
+                        API Reference
+                    </button>
+                    <button onclick="switchTab('sdk')" id="nav-sdk" class="nav-item w-full text-left px-2 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all">
+                        Agent SDK
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-white/10">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded bg-gradient-to-br from-gray-800 to-black border border-white/10 flex items-center justify-center">
+                    <i data-lucide="github" class="w-4 h-4 text-white"></i>
+                </div>
+                <div>
+                    <div class="text-xs font-bold text-white">x402-icp</div>
+                    <div class="text-[10px] text-gray-500">v0.1.0-alpha</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-[#050505] relative">
+        
+        <!-- Top Mobile Header (visible only on small screens, simplified for this demo) -->
+        <div class="md:hidden h-14 border-b border-white/10 flex items-center px-4">
+            <span class="font-mono font-bold">Menu</span>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div id="scroll-container" class="flex-1 overflow-y-auto p-8 md:p-12 lg:pr-64 scroll-smooth">
+            <div class="max-w-3xl mx-auto prose pb-20">
+                
+                <!-- SECTION: INTRO -->
+                <div id="intro" class="content-section active">
+                    <div class="flex items-center gap-2 text-sm font-mono text-green-500 mb-4">
+                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                        Documentation / Introduction
+                    </div>
+                    <h1>Introduction to x402 on ICP</h1>
+                    <p class="lead text-lg text-gray-300">
+                        x402 is an open standard for the <strong>Agentic Economy</strong>. It enables autonomous AI agents to negotiate, pay for, and access resources over HTTP using the <code class="text-sm">402 Payment Required</code> status code.
+                    </p>
+                    <p>
+                        On the Internet Computer (ICP), we implement x402 using <strong>ckBTC</strong> (Chain-Key Bitcoin) and the <strong>ICRC-2</strong> standard. This allows for trustless verification of payments without relying on centralized off-chain indexers.
+                    </p>
+                    
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-6 my-8">
+                        <h3 class="!mt-0 !text-base font-mono flex items-center gap-2">
+                            <i data-lucide="info" class="w-4 h-4"></i> Why ICP?
+                        </h3>
+                        <p class="!mb-0 text-sm">
+                            Unlike other chains where agents are just wallets, on ICP, agents can be <strong>Canisters</strong> (Smart Contracts). This allows for fully autonomous, unstoppable payment flows where the buyer and seller are both code.
+                        </p>
+                    </div>
+
+                    <h2>Use Cases</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 not-prose">
+                        <div class="p-4 border border-white/10 rounded hover:bg-white/5 transition-colors">
+                            <i data-lucide="database" class="w-6 h-6 mb-2 text-white"></i>
+                            <h4 class="text-white font-bold text-sm">Pay-Per-Request APIs</h4>
+                            <p class="text-xs text-gray-500 mt-1">Sell premium datasets or GPU compute per call.</p>
+                        </div>
+                        <div class="p-4 border border-white/10 rounded hover:bg-white/5 transition-colors">
+                            <i data-lucide="bot" class="w-6 h-6 mb-2 text-white"></i>
+                            <h4 class="text-white font-bold text-sm">Agent-to-Agent Commerce</h4>
+                            <p class="text-xs text-gray-500 mt-1">AI agents hiring other agents for sub-tasks.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-12 flex justify-end">
+                        <button onclick="switchTab('quickstart')" class="group flex items-center gap-2 text-sm font-mono text-white border border-white/20 px-4 py-2 rounded hover:bg-white hover:text-black transition-all">
+                            Next: Quick Start <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SECTION: QUICK START -->
+                <div id="quickstart" class="content-section">
+                    <div class="flex items-center gap-2 text-sm font-mono text-blue-500 mb-4">
+                        Documentation / Quick Start
+                    </div>
+                    <h1>Quick Start</h1>
+                    <p>Get up and running with the x402 SDK for ICP in under 5 minutes.</p>
+
+                    <h2>Installation</h2>
+                    <p>Install the official client SDK via npm:</p>
+                    <pre><code class="language-bash">npm install @x402/icp-client @dfinity/agent</code></pre>
+
+                    <h2>Basic Usage</h2>
+                    <p>The client library handles the 402 handshake automatically. It intercepts the `402` response, prompts the user (or wallet) for approval, and retries the request.</p>
+
+                    <pre><code class="language-typescript">import { X402Client } from "@x402/icp-client";
+import { PlugWallet } from "@x402/wallets";
+
+// 1. Initialize Client
+const client = new X402Client({
+    wallet: new PlugWallet(),
+    network: "ic" // or "local"
+});
+
+// 2. Make a request
+async function fetchData() {
+    try {
+        // This acts like a normal fetch, but handles payment if 402 is returned
+        const response = await client.fetch("https://api.monopoly.xyz/data");
+        const data = await response.json();
+        console.log("Premium Data:", data);
+    } catch (err) {
+        console.error("Payment failed or cancelled", err);
+    }
+}</code></pre>
+
+                    <div class="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-md mt-6">
+                        <p class="text-yellow-200 text-sm !mb-0">
+                            <strong>Note:</strong> Ensure your wallet has <strong>ckBTC</strong>. You can get testnet ckBTC from the DFINITY faucet.
+                        </p>
+                    </div>
+                    
+                    <div class="mt-12 flex justify-between">
+                        <button onclick="switchTab('intro')" class="text-sm font-mono text-gray-500 hover:text-white transition-colors">← Introduction</button>
+                        <button onclick="switchTab('architecture')" class="group flex items-center gap-2 text-sm font-mono text-white border border-white/20 px-4 py-2 rounded hover:bg-white hover:text-black transition-all">
+                            Next: Architecture <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SECTION: ARCHITECTURE -->
+                <div id="architecture" class="content-section">
+                     <div class="flex items-center gap-2 text-sm font-mono text-purple-500 mb-4">
+                        Documentation / Architecture
+                    </div>
+                    <h1>Architecture</h1>
+                    <p>The x402 implementation on ICP relies on three main actors:</p>
+                    
+                    <div class="my-8 p-6 bg-white/5 border border-white/10 rounded-lg flex flex-col items-center justify-center font-mono text-xs">
+                        <!-- Simple Diagram Representation -->
+                        <div class="flex w-full justify-between items-center mb-4">
+                            <div class="p-3 border border-white/40 rounded text-center w-24">Agent<br>(Client)</div>
+                            <div class="h-px bg-white/20 flex-1 relative mx-4">
+                                <span class="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] text-gray-500">1. Request</span>
+                            </div>
+                            <div class="p-3 border border-red-500/50 text-red-300 rounded text-center w-24">Server<br>(Merchant)</div>
+                        </div>
+                        <div class="flex w-full justify-between items-center mb-4">
+                            <div class="w-24 text-center text-gray-500">↓</div>
+                            <div class="h-px bg-red-500/50 flex-1 relative mx-4">
+                                <span class="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] text-red-400">2. 402 Error</span>
+                            </div>
+                            <div class="w-24 text-center text-gray-500">↓</div>
+                        </div>
+                         <div class="flex w-full justify-between items-center mb-4">
+                            <div class="p-3 border border-white/40 rounded text-center w-24 bg-white/10">ckBTC<br>Ledger</div>
+                            <div class="h-px bg-white/20 flex-1 relative mx-4">
+                                <span class="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] text-blue-400">3. Approve</span>
+                            </div>
+                            <div class="w-24"></div>
+                        </div>
+                         <div class="flex w-full justify-between items-center">
+                            <div class="w-24"></div>
+                            <div class="h-px bg-green-500/50 flex-1 relative mx-4">
+                                <span class="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] text-green-400">4. Settlement</span>
+                            </div>
+                            <div class="p-3 border border-green-500/50 text-green-300 rounded text-center w-24">Facilitator<br>(Canister)</div>
+                        </div>
+                    </div>
+
+                    <h3>The Components</h3>
+                    <ul>
+                        <li><strong>Client:</strong> The buyer. Initiates the HTTP request.</li>
+                        <li><strong>Server:</strong> The seller. Gates resources behind a 402 wall.</li>
+                        <li><strong>ckBTC Ledger:</strong> The token contract. We use the standard ICRC-2 <code>approve</code> method.</li>
+                        <li><strong>Facilitator:</strong> A trusted canister that verifies the approval and executes <code>transfer_from</code> to settle the payment.</li>
+                    </ul>
+                </div>
+
+                <!-- SECTION: API Reference -->
+                <div id="api" class="content-section">
+                    <div class="flex items-center gap-2 text-sm font-mono text-orange-500 mb-4">
+                        Documentation / Reference
+                    </div>
+                    <h1>API Reference</h1>
+                    
+                    <h2>The 402 Response</h2>
+                    <p>When a server requires payment, it MUST return a status <code>402</code> with a JSON body describing the payment requirements.</p>
+
+                    <pre><code class="language-json">{
+  "error": {
+    "code": "402",
+    "message": "Payment Required",
+    "x402": {
+      "scheme": "exact",
+      "token": {
+        "chain": "ICP",
+        "ledger_id": "mxzaz-hqmqe-cnarv-dqu6p-osn6o-42zio-q4u4l-q4k2l-q4n2l-q4h2l-76z",
+        "symbol": "ckBTC"
+      },
+      "amount": "1000",
+      "recipient": "merchant-account-identifier",
+      "facilitator": "anda-facilitator-canister-id"
+    }
+  }
+}</code></pre>
+
+                    <h2>The Payment Header</h2>
+                    <p>The client responds with the <code>X-Payment</code> header containing the proof of approval.</p>
+
+                    <pre><code class="language-json">{
+  "scheme": "exact",
+  "token": "mxzaz-hq...",
+  "approval_block_index": 1234567, 
+  "amount": "1000"
+}</code></pre>
+
+                    <h3>Fields</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-left text-sm font-mono mt-4">
+                            <thead class="border-b border-white/10 text-gray-400">
+                                <tr>
+                                    <th class="py-2">Field</th>
+                                    <th class="py-2">Type</th>
+                                    <th class="py-2">Description</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-gray-300">
+                                <tr class="border-b border-white/5">
+                                    <td class="py-2 text-white">scheme</td>
+                                    <td class="py-2">string</td>
+                                    <td class="py-2">Must be "exact" for fixed-price resources.</td>
+                                </tr>
+                                <tr class="border-b border-white/5">
+                                    <td class="py-2 text-white">approval_block_index</td>
+                                    <td class="py-2">integer</td>
+                                    <td class="py-2">The block index returned by the ICRC-2 approve call.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- RIGHT SIDEBAR (TOC) -->
+        <aside class="hidden lg:block w-64 border-l border-white/10 p-8 h-full z-10">
+            <h5 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">On this page</h5>
+            <div id="toc" class="space-y-2 text-sm text-gray-500 border-l border-white/10 pl-4">
+                <!-- Dynamic TOC could be injected here, static for MVP -->
+                <a href="#" class="block hover:text-white hover:border-l-white -ml-[17px] pl-[13px] border-l-2 border-transparent transition-all">Overview</a>
+                <a href="#" class="block hover:text-white hover:border-l-white -ml-[17px] pl-[13px] border-l-2 border-transparent transition-all">Why ICP?</a>
+                <a href="#" class="block hover:text-white hover:border-l-white -ml-[17px] pl-[13px] border-l-2 border-transparent transition-all">Use Cases</a>
+            </div>
+        </aside>
+
+    </main>
+
+    <script>
+        // Init Lucide Icons
+        lucide.createIcons();
+
+        function switchTab(tabId) {
+            // 1. Update Nav State
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const navItem = document.getElementById(`nav-${tabId}`);
+            if(navItem) navItem.classList.add('active');
+
+            // 2. Animate Out Current
+            const activeSection = document.querySelector('.content-section.active');
+            if(activeSection) {
+                anime({
+                    targets: activeSection,
+                    opacity: 0,
+                    translateY: -10,
+                    duration: 200,
+                    easing: 'easeInQuad',
+                    complete: () => {
+                        activeSection.classList.remove('active');
+                        // 3. Animate In New
+                        const newSection = document.getElementById(tabId);
+                        if(newSection) {
+                            newSection.classList.add('active');
+                            anime({
+                                targets: newSection,
+                                opacity: [0, 1],
+                                translateY: [10, 0],
+                                duration: 400,
+                                easing: 'spring(1, 80, 12, 0)'
+                            });
+                        }
+                    }
+                });
+            } else {
+                // Initial load fallback
+                const newSection = document.getElementById(tabId);
+                if(newSection) newSection.classList.add('active');
+            }
+
+            // Scroll to top
+            document.getElementById('scroll-container').scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Initialize Animation on Load
+        document.addEventListener('DOMContentLoaded', () => {
+            anime({
+                targets: '.content-section.active',
+                opacity: [0, 1],
+                translateY: [20, 0],
+                duration: 800,
+                easing: 'spring(1, 80, 12, 0)'
+            });
+        });
+    </script>
+</body>
+</html>
