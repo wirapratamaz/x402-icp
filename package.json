@@ -1,0 +1,29 @@
+{
+  "name": "x402-icp",
+  "version": "0.1.0",
+  "description": "x402 Payment Protocol implementation on Internet Computer",
+  "scripts": {
+    "setup": "npm install && dfx install",
+    "build": "dfx build",
+    "deploy": "dfx deploy",
+    "deploy-local": "dfx deploy --network local",
+    "start": "dfx start --background",
+    "stop": "dfx stop",
+    "demo": "npm run deploy-local && npm run test-flow",
+    "test-flow": "node tests/test-flow.js",
+    "clean": "dfx stop && dfx clean && rm -rf .dfx target"
+  },
+  "dependencies": {
+    "@dfinity/agent": "^2.0.0",
+    "@dfinity/ledger-icrc": "^2.3.0",
+    "@dfinity/candid": "^2.0.0",
+    "@dfinity/principal": "^2.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "esbuild": "^0.19.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

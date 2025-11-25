@@ -1,0 +1,25 @@
+{
+  "canisters": {
+    "merchant": {
+      "package": "merchant_canister",
+      "candid": "canisters/merchant/merchant.did",
+      "type": "rust"
+    },
+    "agent": {
+      "package": "agent_canister",
+      "candid": "canisters/agent/agent.did",
+      "type": "rust"
+    }
+  },
+  "defaults": {
+    "build": {
+      "packtool": "moc"
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    }
+  }
+}

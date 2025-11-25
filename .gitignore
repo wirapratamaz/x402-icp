@@ -1,0 +1,72 @@
+# DFX
+.dfX/
+dfx/
+.dfx/
+
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+.cargo/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+Spotlight-V100
+.Trashes
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+frontend/dist/
+canisters/*/target/
+*.wasm
+*.did
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Canister builds
+.cache/
+*.gz
+
+# Wallet files
+wallet.json
+wallet-*.json
+
+# Test coverage
+coverage/
+*.lcov
+
+# Backup files
+*.bak
+*.backup
