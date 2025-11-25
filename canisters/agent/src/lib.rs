@@ -58,6 +58,26 @@ struct MerchantErrorResponse {
     x402: PaymentInfo,
 }
 
+#[derive(CandidType, Deserialize)]
+struct PaymentProof {
+    payment_id: String,
+    nonce: u64,
+    payer: Principal,
+    amount: u64,
+    token_ledger: Principal,
+    facilitator_signature: Vec<u8>,
+    expiry: u64,
+    resource_id: String,
+}
+
+#[derive(CandidType)]
+struct PaymentVerification {
+    success: bool,
+    block_index: u64,
+    transaction_hash: String,
+    error: Option<String>,
+}
+
 // Agent attempts to fetch premium data
 #[update]
 async fn fetch_premium_data(merchant_canister: Principal) -> FetchResult {

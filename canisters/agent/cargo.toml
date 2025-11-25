@@ -10,3 +10,5 @@ crate-type = ["cdylib"]
 candid = { workspace = true }
 ic-cdk = { workspace = true }
 serde = { workspace = true }
+sha2 = "0.10"
+hex = "0.4"
