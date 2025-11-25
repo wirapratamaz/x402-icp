@@ -58,6 +58,57 @@ node tests/simple-test.js $(dfx canister id merchant) $(dfx canister id agent)
 🎉 Basic x402 flow test completed successfully!
 ```
 
+### 🔄 Data Flow & State Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle: Initial State
+
+    Idle --> PaymentChallenge: Client requests premium data
+    PaymentChallenge --> Idle: Client declines payment
+    PaymentChallenge --> PaymentPreparation: Client accepts payment
+
+    PaymentPreparation --> PaymentVerification: Payment proof generated
+    PaymentPreparation --> Idle: Payment preparation fails
+
+    PaymentVerification --> Rejected: Invalid proof
+    PaymentVerification --> ConsumedCheck: Valid proof
+    Rejected --> Idle: Error response to client
+
+    ConsumedCheck --> Rejected: Payment already consumed
+    ConsumedCheck --> FacilitatorCall: Payment unique
+
+    FacilitatorCall --> SettlementFailed: Facilitator error
+    FacilitatorCall --> MarkConsumed: Settlement success
+    SettlementFailed --> Idle: Error response to client
+
+    MarkConsumed --> ResourceAccess: Payment marked consumed
+    ResourceAccess --> Idle: Premium data delivered
+
+    note right of PaymentChallenge
+        402 Response Details:
+        - Amount: 1000 satoshis
+        - Token: ckBTC
+        - Facilitator: ogkpr-lyaaa-aaaap-an5fq-cai
+        - Scheme: exact
+    end note
+
+    note right of FacilitatorCall
+        commit_payment_exact:
+        - Validates payment proof
+        - Executes ICRC-2 transfer_from
+        - Returns block_index + tx_hash
+    end note
+
+    note right of MarkConsumed
+        Security Features:
+        - Replay protection
+        - Resource binding
+        - Expiry validation
+        - Principal verification
+    end note
+```
+
 ### 🚀 Production Implementation Details
 
 **Real Inter-Canister Integration**
@@ -132,6 +183,78 @@ sequenceDiagram
 - **Ledger**: `mxzaz-hqmqe-cnarv-dqu6p-osn6o-42zio-q4u4l-q4k2l-q4n2l-q4h2l-76z`
 - **Settlement**: Real on-chain block indexing with transaction hashes
 - **Security**: Resource-bound payments prevent replay attacks
+
+### 🏗️ System Architecture
+
+```mermaid
+graph TB
+    subgraph "User Layer"
+        WebApp[Web Application]
+        CLI[CLI Client]
+        AgentBot[Autonomous Agent]
+    end
+
+    subgraph "ICP Network Layer"
+        subgraph "Local Development"
+            LocalMerchant[Merchant Canister<br/>u6s2n-gx777-77774-qaaba-cai]
+            LocalAgent[Agent Canister<br/>uxrrr-q7777-77774-qaaaq-cai]
+        end
+
+        subgraph "Mainnet Production"
+            MainnetMerchant[Merchant Canister<br/>Production]
+            MainnetAgent[Agent Canister<br/>Production]
+        end
+    end
+
+    subgraph "Payment Infrastructure"
+        AndaFacilitator[Anda Facilitator<br/>ogkpr-lyaaa-aaaap-an5fq-cai]
+        ckBTCLedger[ckBTC Ledger<br/>mxzaz-hqmqe-cnarv-dqu6p-osn6o-42zio-q4u4l-q4k2l-q4n2l-q4h2l-76z]
+        Bitcoin[Bitcoin Network]
+    end
+
+    subgraph "Security Features"
+        ReplayProtection[Replay Protection]
+        ResourceBinding[Resource Binding]
+        ExpiryValidation[Expiry Validation]
+        PrincipalVerification[Principal Verification]
+    end
+
+    %% User Layer Connections
+    WebApp --> LocalMerchant
+    CLI --> LocalMerchant
+    AgentBot --> LocalAgent
+
+    %% Internal Connections
+    LocalMerchant -.-> LocalAgent
+    LocalAgent --> LocalMerchant
+
+    %% Production Connections
+    MainnetMerchant --> MainnetAgent
+    MainnetAgent --> MainnetMerchant
+
+    %% Payment Infrastructure Connections
+    LocalMerchant --> AndaFacilitator
+    MainnetMerchant --> AndaFacilitator
+    AndaFacilitator --> ckBTCLedger
+    ckBTCLedger --> Bitcoin
+
+    %% Security Integration
+    LocalMerchant --> ReplayProtection
+    LocalMerchant --> ResourceBinding
+    LocalMerchant --> ExpiryValidation
+    LocalMerchant --> PrincipalVerification
+
+    %% Styling
+    classDef userLayer fill:#e1f5fe
+    classDef icpLayer fill:#f3e5f5
+    classDef paymentLayer fill:#e8f5e8
+    classDef securityLayer fill:#fff3e0
+
+    class WebApp,CLI,AgentBot userLayer
+    class LocalMerchant,LocalAgent,MainnetMerchant,MainnetAgent icpLayer
+    class AndaFacilitator,ckBTCLedger,Bitcoin paymentLayer
+    class ReplayProtection,ResourceBinding,ExpiryValidation,PrincipalVerification securityLayer
+```
 
 ### 🏗️ Live Canisters (Local)
 - **Merchant**: `u6s2n-gx777-77774-qaaba-cai`
